@@ -11,7 +11,6 @@ from aiogram.exceptions import TelegramRetryAfter
 from aiogram.types import UniqueGiftInfo
 
 # ─── ИМПОРТЫ ДЛЯ MRKT API ───
-# pip install MRKTAPI
 try:
     from MRKTAPI import search
     from MRKTAPI.auth import update_auth
@@ -24,11 +23,11 @@ except ImportError:
 BOT_TOKEN = "8588452412:AAFri3a-gzv-iJlVKXyRqWKJMrcavclmvjU"
 OWNER_ID = 8145037447
 
-# ID группы и темы для отчетов (начинается с -100)
-REPORT_GROUP_ID = -1001234567890  
-REPORT_TOPIC_ID = 123             
+# 👇 ВАШИ ID ДЛЯ ОТЧЕТОВ
+REPORT_GROUP_ID = -1004252297326  
+REPORT_TOPIC_ID = 138             
 
-# Настройки для MRKT (ваши данные)
+# Настройки для MRKT
 API_ID = 33849562
 API_HASH = "e5f89025320f4edc02c48e274ac1b11b"
 
